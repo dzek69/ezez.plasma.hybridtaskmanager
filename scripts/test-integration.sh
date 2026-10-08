@@ -21,7 +21,7 @@ unset WAYLAND_DISPLAY DISPLAY SESSION_MANAGER
 # No window manager/compositor or hardware graphics. The harness publishes
 # fixture windows through EWMH, the same X11 protocol read by Plasma's model.
 timeout 45s xvfb-run -a -s '-screen 0 1280x800x24 -nolisten tcp' \
-    dbus-run-session --config-file="$project_dir/tests/session-bus.conf" -- "$project_dir/build/bin/test_applet" \
+    dbus-run-session --config-file="$project_dir/tests/session-bus.conf" -- "$project_dir/build/bin/test_applet" "$@" \
     > "$project_dir/artifacts/integration.log" 2>&1
 cat "$project_dir/artifacts/integration.log"
 grep -Eq 'Totals: [0-9]+ passed, 0 failed' "$project_dir/artifacts/integration.log"

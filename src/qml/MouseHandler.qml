@@ -16,6 +16,8 @@ DropArea {
 
     property Item target
     property Item ignoredItem
+    property point reorderDirection: Qt.point(0, 0)
+    property real furthestDragPosition: 0
     property Item hoveredItem
     property bool isGroupDialog: false
     property bool moved: false
@@ -24,6 +26,7 @@ DropArea {
 
     //ignore anything that is neither internal to TaskManager or a URL list
     onEntered: event => {
+        ignoredItem = null;
         if (event.formats.indexOf("text/x-plasmoidservicename") >= 0) {
             event.accepted = false;
         }
@@ -55,25 +58,6 @@ DropArea {
             return;
         }
 
-        // If we're mixing launcher tasks with other tasks and are moving
-        // a (small) launcher task across a non-launcher task, don't allow
-        // the latter to be the move target twice in a row for a while, as
-        // it will naturally be moved underneath the cursor as result of the
-        // initial move, due to being far larger than the launcher delegate.
-        // TODO: This restriction (minus the timer, which improves things)
-        // has been proven out in the EITM fork, but could be improved later
-        // by tracking the cursor movement vector and allowing the drag if
-        // the movement direction has reversed, establishing user intent to
-        // move back.
-        if (!Plasmoid.configuration.separateLaunchers
-                && tasks.dragSource?.model.IsLauncher
-                && !above.model.IsLauncher
-                && above === ignoredItem) {
-            return;
-        } else {
-            ignoredItem = null;
-        }
-
         if (tasksModel.sortMode === TaskManager.TasksModel.SortManual && tasks.dragSource) {
             // Reject drags between different TaskList instances.
             if (tasks.dragSource.parent !== above.parent) {
@@ -83,6 +67,31 @@ DropArea {
             const insertAt = above.index;
 
             if (tasks.dragSource !== above && tasks.dragSource.index !== insertAt) {
+                // A wider neighbour can remain under the cursor after a swap.
+                // Do not swap it back while continuing in the same direction,
+                // even during a slow drag. Allow reversing after a deliberate
+                // movement back from the furthest pointer position.
+                if (above === ignoredItem) {
+                    const position = event.x * reorderDirection.x + event.y * reorderDirection.y;
+                    furthestDragPosition = Math.max(furthestDragPosition, position);
+                    if (furthestDragPosition - position < Application.styleHints.startDragDistance) {
+                        return;
+                    }
+                }
+
+                const sourceCenter = tasks.dragSource.mapToItem(dropArea, tasks.dragSource.width / 2, tasks.dragSource.height / 2);
+                const targetCenter = above.mapToItem(dropArea, above.width / 2, above.height / 2);
+                // Follow the row/column being crossed, including mirrored
+                // layouts and wrapping onto another row or column.
+                const vertical = isGroupDialog || (tasks.vertical
+                    ? Math.abs(targetCenter.x - sourceCenter.x) < (tasks.dragSource.width + above.width) / 2
+                    : Math.abs(targetCenter.y - sourceCenter.y) >= (tasks.dragSource.height + above.height) / 2);
+                reorderDirection = vertical
+                    ? Qt.point(0, Math.sign(targetCenter.y - sourceCenter.y))
+                    : Qt.point(Math.sign(targetCenter.x - sourceCenter.x), 0);
+                furthestDragPosition = event.x * reorderDirection.x + event.y * reorderDirection.y;
+                ignoredItem = above;
+
                 if (tasks.groupDialog) {
                     tasksModel.move(tasks.dragSource.index, insertAt,
                         tasksModel.makeModelIndex(tasks.groupDialog.visualParent.index));
@@ -90,8 +99,10 @@ DropArea {
                     tasksModel.move(tasks.dragSource.index, insertAt);
                 }
 
-                ignoredItem = above;
-                ignoreItemTimer.restart();
+            } else {
+                // Once the cursor reaches its own delegate there is no
+                // displaced neighbour left underneath it to suppress.
+                ignoredItem = null;
             }
         } else if (!tasks.dragSource && hoveredItem !== above) {
             hoveredItem = above;
@@ -100,6 +111,7 @@ DropArea {
     }
 
     onExited: {
+        ignoredItem = null;
         hoveredItem = null;
         activationTimer.stop();
     }
@@ -127,20 +139,6 @@ DropArea {
         target: tasks
 
         function onDragSourceChanged(): void {
-            if (!dragSource) {
-                dropArea.ignoredItem = null;
-                ignoreItemTimer.stop();
-            }
-        }
-    }
-
-    Timer {
-        id: ignoreItemTimer
-
-        repeat: false
-        interval: 750
-
-        onTriggered: {
             dropArea.ignoredItem = null;
         }
     }

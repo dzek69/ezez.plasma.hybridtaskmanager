@@ -2,12 +2,17 @@
 #include <QApplication>
 #include <QAction>
 #include <QDir>
+#include <QDragEnterEvent>
+#include <QDragLeaveEvent>
+#include <QDragMoveEvent>
+#include <QMimeData>
 #include <QProcess>
 #include <QQmlContext>
 #include <QQmlEngine>
 #include <QQmlExpression>
 #include <QQuickItem>
 #include <QQuickWindow>
+#include <QScopeGuard>
 #include <QTest>
 #include <QTemporaryDir>
 #include <KConfigGroup>
@@ -142,7 +147,7 @@ private Q_SLOTS:
         toggleMenu(terminal, false);
         QTRY_VERIFY(terminal->property("iconOnlyApplication").toBool());
         QTRY_VERIFY(!labelVisible(terminal));
-        QTRY_VERIFY(terminal->width() <= 44);
+        QTRY_COMPARE(terminal->width(), 44 + 2 * terminal->property("iconOnlySidePadding").toReal());
         QVERIFY(labelVisible(files));
         QVERIFY(files->width() > 100);
         screenshot("icon-only");
@@ -150,6 +155,76 @@ private Q_SLOTS:
         QTRY_VERIFY(!terminal->property("iconOnlyApplication").toBool());
         QTRY_VERIFY(labelVisible(terminal));
         QTRY_COMPARE(terminal->width(), textWidth);
+    }
+    void iconOnlyDragDoesNotOscillate_data()
+    {
+        QTest::addColumn<bool>("reverse");
+        QTest::addColumn<bool>("rtl");
+        QTest::newRow("forward-ltr") << false << false;
+        QTest::newRow("backward-ltr") << true << false;
+        QTest::newRow("forward-rtl") << false << true;
+        QTest::newRow("backward-rtl") << true << true;
+    }
+    void iconOnlyDragDoesNotOscillate()
+    {
+        QFETCH(bool, reverse);
+        QFETCH(bool, rtl);
+        auto terminal = task("Terminal test");
+        auto files = task("Files test");
+        QVERIFY(terminal);
+        QVERIFY(files);
+        toggleMenu(terminal, false);
+        QGuiApplication::setLayoutDirection(rtl ? Qt::RightToLeft : Qt::LeftToRight);
+        const auto cleanup = qScopeGuard([&]() {
+            QDragLeaveEvent leave;
+            QCoreApplication::sendEvent(&view, &leave);
+            root->setProperty("dragSource", QVariant::fromValue<QQuickItem *>(nullptr));
+            QGuiApplication::setLayoutDirection(Qt::LeftToRight);
+            if (terminal->property("iconOnlyApplication").toBool()) {
+                toggleMenu(terminal, true);
+            }
+        });
+        applet->configuration()->insert("separateLaunchers", true);
+        applet->configuration()->insert("sortingStrategy", 1);
+        eval(QString("tasksRoot.tasksModel.move(index, %1)").arg(reverse ? 1 : 0), terminal);
+        QTRY_COMPARE(terminal->property("index").toInt(), reverse ? 1 : 0);
+        QTest::qWait(350);
+
+        const QPoint start = terminal->mapToItem(view.contentItem(), QPointF(terminal->width() / 2, terminal->height() / 2)).toPoint();
+        const QPointF targetStart = files->mapToItem(view.contentItem(), QPointF(0, 0));
+        const QPointF targetCenter = files->mapToItem(view.contentItem(), QPointF(files->width() / 2, files->height() / 2));
+        const int direction = targetCenter.x() > start.x() ? 1 : -1;
+        QPoint position(qRound(direction > 0 ? targetStart.x() + 2 : targetStart.x() + files->width() - 2), start.y());
+        QMimeData mime;
+        mime.setData("application/x-orgkdeplasmataskmanager_taskbuttonitem", "fixture");
+        root->setProperty("dragSource", QVariant::fromValue(terminal));
+        QDragEnterEvent enter(QPointF(start), Qt::MoveAction, &mime, Qt::LeftButton, Qt::NoModifier);
+        QCoreApplication::sendEvent(&view, &enter);
+        QVERIFY(enter.isAccepted());
+        const auto move = [&]() {
+            QDragMoveEvent event(QPointF(position), Qt::MoveAction, &mime, Qt::LeftButton, Qt::NoModifier);
+            QCoreApplication::sendEvent(&view, &event);
+        };
+        move();
+        const int movedIndex = reverse ? 0 : 1;
+        QTRY_COMPARE(terminal->property("index").toInt(), movedIndex);
+        // Wait past the old launcher's 750 ms timeout, then move one pixel at
+        // a time while the wider task is still underneath the mouse.
+        QTest::qWait(850);
+        for (int i = 0; i < 4; ++i) {
+            position.rx() += direction;
+            move();
+            QTest::qWait(150);
+            QCOMPARE(terminal->property("index").toInt(), movedIndex);
+        }
+        // A small hand tremor must not reorder; an intentional reversal must.
+        position.rx() -= direction;
+        move();
+        QTest::qWait(150);
+        QCOMPARE(terminal->property("index").toInt(), movedIndex);
+        position.rx() -= direction * (QApplication::startDragDistance() + 2);
+        move();
+        QTRY_COMPARE(terminal->property("index").toInt(), reverse ? 1 : 0);
     }
     void survivesWindowRestartAndPreservesPopupLabels()
     {
@@ -165,7 +240,7 @@ private Q_SLOTS:
         auto terminal = task("Terminal reopened");
         QTRY_VERIFY(terminal->property("iconOnlyApplication").toBool());
         QTRY_VERIFY(!labelVisible(terminal));
-        QTRY_VERIFY(terminal->width() <= 44);
+        QTRY_COMPARE(terminal->width(), 44 + 2 * terminal->property("iconOnlySidePadding").toReal());
         terminal->setProperty("inPopup", true);
         QTRY_VERIFY(labelVisible(terminal));
         terminal->setProperty("inPopup", false);
@@ -188,7 +263,7 @@ private Q_SLOTS:
         root->setSize(QSizeF(1000, 88));
         view.resize(1000, 88);
         QTRY_VERIFY(!root->property("vertical").toBool());
-        QTRY_VERIFY(terminal->width() <= 44);
+        QTRY_COMPARE(terminal->width(), 44 + 2 * terminal->property("iconOnlySidePadding").toReal());
         QVERIFY(!labelVisible(terminal));
         screenshot("two-rows");
         toggleMenu(terminal, true);
@@ -204,7 +279,7 @@ private Q_SLOTS:
         QTRY_VERIFY(task("Terminal second window"));
         toggleMenu(task("Terminal reopened"), false);
         QTRY_VERIFY(task("Terminal second window")->property("iconOnlyApplication").toBool());
-        QTRY_VERIFY(task("Terminal second window")->width() <= 44);
+        QTRY_COMPARE(task("Terminal second window")->width(), 44 + 2 * task("Terminal second window")->property("iconOnlySidePadding").toReal());
 
         auto otherApplet = panel->createApplet("org.ezez.plasma.hybridtaskmanager");
         auto otherConfig = otherApplet->config().group("General");
@@ -236,7 +311,7 @@ private Q_SLOTS:
         };
         QTRY_VERIFY(group());
         QTRY_VERIFY(group()->property("iconOnlyApplication").toBool());
-        QTRY_VERIFY(group()->width() <= 44);
+        QTRY_COMPARE(group()->width(), 44 + 2 * group()->property("iconOnlySidePadding").toReal());
         QVERIFY(!labelVisible(group()));
         toggleMenu(group(), true);
         QTRY_VERIFY(labelVisible(group()));

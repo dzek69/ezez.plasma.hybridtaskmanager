@@ -1,52 +1,58 @@
 # Hybrid Task Manager
 
-Wariant KDE **Icons-and-Text Task Manager** z wyborem aplikacji wyświetlanych samą ikoną. Bazuje na kodzie Plasma Desktop **6.7.5** i używa istniejącego modelu zadań KDE.
+English | [Polski](README-pl.md)
 
-Kliknij prawym przyciskiem zadanie na pasku i zaznacz **Show Only Icon for This Application** (po polsku: **Pokazuj tylko ikonę tej aplikacji**). Ponowne kliknięcie przywraca tekst. Przycisk bez tekstu zajmuje szerokość ikony. Wybór dotyczy wszystkich okien aplikacji i wszystkich instancji tego widżetu, także po ponownym uruchomieniu aplikacji lub Plasmy. Nazwy w podpowiedziach i listach okien pozostają dostępne.
+A fork of KDE's **Icons-and-Text Task Manager** that lets you display selected applications as icons without labels. Based on Plasma Desktop **6.7.5**, using KDE's existing task model.
 
-Aplikację rozpoznaje wpis `.desktop` zwracany przez KDE, a gdy go brakuje — App ID / WM_CLASS. Nie trzeba wpisywać ścieżki programu, nazwy okna ani PID-u. Flatpaki korzystają ze swojego identyfikatora `.desktop`. Dla okien bez rozpoznawalnego identyfikatora opcja jest nieaktywna.
+Right-click an application's task button and enable **Show Only Icon for This Application**. Disable it to restore the label. The icon-only button takes up less space. Your choice applies to all windows of that application and every instance of this widget, and survives application and Plasma restarts. Window names remain available in tooltips and window lists.
 
-## Instalacja i cofnięcie
+Applications are identified by the `.desktop` entry supplied by KDE, falling back to App ID / WM_CLASS when no entry is available. There is no need to enter executable paths, window titles, or process IDs. Flatpak applications use their `.desktop` identifiers. The option is disabled for windows without a usable application identifier.
 
-Wymagane są narzędzia deweloperskie Qt 6 / KDE Frameworks 6, Plasma, CMake, Ninja, gettext, kompilator C++, Python 3 i Xvfb. Na komputerze, dla którego powstał projekt, wszystkie zależności były już dostępne. Przetestowano Plasma **6.7.5**, KDE Frameworks **6.30**, Qt **6.12**, Garuda Linux.
+Selected applications get extra spacing on both sides of their icons: one `Kirigami.Units.smallSpacing`, normally 4 px per side. Dragging a short button over a wider one does not repeatedly swap them back and forth. To reverse a swap, move the pointer back by the system's drag threshold.
+
+## Installation and rollback
+
+Requires Qt 6 / KDE Frameworks 6 and Plasma development libraries, CMake, Ninja, gettext, a C++ compiler, Python 3, and Xvfb. All dependencies were already installed on the machine this project was built for. Tested with Plasma **6.7.5**, KDE Frameworks **6.30**, and Qt **6.12** on Garuda Linux.
 
 ```bash
 bash scripts/install.sh --activate
 ```
 
-Skrypt buduje i testuje widżet, instaluje go w `~/.local`, robi kopię konfiguracji i zastępuje standardowe tekstowe menedżery zadań, zachowując ich ID, kolejność oraz ustawienia. Wykonuje krótki restart `plasma-plasmashell.service`; nie restartuje KWin ani aplikacji. Ponowne uruchomienie skryptu aktualizuje bibliotekę i przeładowuje widżet. Bez `--activate` tylko instaluje pliki.
+The script builds and tests the widget, installs it under `~/.local`, backs up the panel configuration, and replaces existing standard Icons-and-Text Task Manager widgets while preserving their IDs, positions, and settings. It briefly restarts `plasma-plasmashell.service`; KWin and running applications remain active. Running the script again updates the library and reloads the widget. Without `--activate`, it installs the files without changing the panel configuration or restarting Plasma.
 
 ```bash
 python3 scripts/panel.py status
 python3 scripts/panel.py restore
 ```
 
-`restore` przywraca standardowy menedżer w tych samych miejscach. Nie odtwarza całego starego układu pulpitu, więc późniejsze zmiany w innych widżetach zostają zachowane.
+`restore` switches the widgets back to KDE's standard task manager in the same positions. It preserves subsequent changes to other widgets instead of restoring the entire desktop layout from a backup.
 
-Pliki użytkownika:
+User files:
 
-- Biblioteka: `~/.local/lib/qt6/plugins/plasma/applets/org.ezez.plasma.hybridtaskmanager.so`.
-- Wybór aplikacji: `~/.config/hybridtaskmanagerrc`, grupa `Appearance`, klucz `IconOnlyApplications`.
-- Ścieżka do lokalnego pluginu dla Plasmy: `~/.config/systemd/user/plasma-plasmashell.service.d/50-hybrid-taskmanager.conf`.
-- Kopie konfiguracji: `~/.local/state/hybrid-taskmanager/`.
+- Plugin library: `~/.local/lib/qt6/plugins/plasma/applets/org.ezez.plasma.hybridtaskmanager.so`.
+- Application preferences: `~/.config/hybridtaskmanagerrc`, group `Appearance`, key `IconOnlyApplications`.
+- Local plugin path for Plasma: `~/.config/systemd/user/plasma-plasmashell.service.d/50-hybrid-taskmanager.conf`.
+- Configuration backups: `~/.local/state/hybrid-taskmanager/`.
 
-Aktualizacja pakietów KDE nie nadpisuje lokalnego widżetu. Po zmianach ABI Plasmy/Qt może być potrzebna ponowna kompilacja. To lokalny fork — nowe funkcje i poprawki przyszłych wersji oryginalnego menedżera nie trafiają do niego automatycznie.
+KDE package updates do not overwrite this local widget. Plasma or Qt ABI changes may require rebuilding it. This is a local fork: improvements and fixes from future versions of KDE's task manager are not incorporated automatically.
 
-## Testy
+## Tests
 
 ```bash
 ctest --test-dir build --output-on-failure
 bash scripts/test-integration.sh
 ```
 
-Testy reguł sprawdzają identyfikację aplikacji, brak dopasowania po binarce, zapis na dysku, odznaczanie i zachowanie pozostałych wpisów. Test integracyjny ładuje prawdziwy plugin Plasmy i model okien, otwiera okna testowe i wywołuje rzeczywistą akcję menu. Sprawdza etykiety, szerokości, ponowne otwarcie aplikacji, widok pionowy, dwa rzędy, grupowanie oraz współdzielenie ustawień między instancjami.
+Rule tests cover application identification, avoiding executable-path matches, persistence, disabling icon-only mode, and preserving unrelated entries. The integration test loads the actual Plasma plugin and window model, opens test windows, and triggers the real context-menu action. It checks labels, button widths, reopening applications, vertical panels, two rows, grouping, and sharing preferences between widget instances.
 
-Test integracyjny używa Xvfb, renderowania programowego, prywatnego D-Bus bez aktywacji usług oraz tymczasowych katalogów konfiguracji/danych/cache. Nie uruchamia KWin i nie łączy się z ekranem użytkownika. Nieobecne w tej sesji usługi aktywności KDE mogą generować ostrzeżenia o bazie ostatnich dokumentów; nie uczestniczą w testowanej funkcji.
+The drag regression test sends drag-and-drop events to the actual widget. It checks one-pixel movements, a pause longer than the previous timeout, small pointer jitter, and intentional reversal. Both directions are tested in LTR and RTL layouts. Before the fix, this test reproduced the short button oscillating over a wider one.
 
-Logi i zrzuty testowe powstają w `artifacts/`. Test wykrywa błędy asercji, QML `TypeError`/`ReferenceError` i pętle bindingów. Podczas testowania poprawiono także istniejącą zależność cykliczną układu przy zmianie orientacji panelu.
+Integration tests use Xvfb, software rendering, a private D-Bus session with service activation disabled, and temporary configuration, data, and cache directories. They do not start KWin or connect to the user's display. KDE activity services are absent from this test session and may produce warnings about the recent-documents database; those services are not involved in the feature under test.
 
-## Pochodzenie kodu
+Logs and test screenshots are written to `artifacts/`. The test runner detects assertion failures, QML `TypeError`/`ReferenceError` messages, and binding loops. An existing layout binding loop when changing panel orientation was also fixed during testing.
 
-`src/` pochodzi z `applets/taskmanager` projektu [KDE plasma-desktop, tag v6.7.5](https://invent.kde.org/plasma/plasma-desktop/-/tree/v6.7.5/applets/taskmanager). Dwa pliki konfiguracji historii aktywności pochodzą z `kcms/recentFiles`. Zachowano nagłówki SPDX i pliki licencji w `LICENSES/`. Tłumaczenia standardowych funkcji są pobierane z oryginalnego katalogu KDE.
+## Source and licensing
 
-Archiwum źródłowe: `plasma-desktop-v6.7.5.tar.gz`, SHA-256 `9c93dd185dbe761130f871e15c68896e4d740b987d779137c30f846e7926754f`.
+`src/` is derived from `applets/taskmanager` in [KDE plasma-desktop, tag v6.7.5](https://invent.kde.org/plasma/plasma-desktop/-/tree/v6.7.5/applets/taskmanager). The two activity-history configuration files come from `kcms/recentFiles`. SPDX headers and license texts in `LICENSES/` have been preserved. Translations for standard task-manager features use KDE's original translation catalog.
+
+Source archive: `plasma-desktop-v6.7.5.tar.gz`, SHA-256 `9c93dd185dbe761130f871e15c68896e4d740b987d779137c30f846e7926754f`.

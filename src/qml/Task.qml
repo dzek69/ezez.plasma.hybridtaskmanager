@@ -44,7 +44,7 @@ PlasmaCore.ToolTipArea {
     Layout.fillHeight: !inPopup
     Layout.maximumWidth: tasksRoot.vertical
         ? -1
-        : ((isIcon && !tasksRoot.iconsOnly && !inPopup) ? tasksRoot.height / taskList.rows : TaskManagerApplet.LayoutMetrics.preferredMaxWidth())
+        : ((isIcon && !tasksRoot.iconsOnly && !inPopup) ? tasksRoot.height / taskList.rows + 2 * iconOnlySidePadding : TaskManagerApplet.LayoutMetrics.preferredMaxWidth())
     Layout.maximumHeight: tasksRoot.vertical ? TaskManagerApplet.LayoutMetrics.preferredMaxHeight() : -1
 
     required property var model
@@ -56,6 +56,7 @@ PlasmaCore.ToolTipArea {
     readonly property string appId: model.AppId.replace(/\.desktop/, '')
     readonly property string iconOnlyKey: TaskManagerApplet.IconOnlyApps.applicationKey(model.AppId, model.LauncherUrlWithoutIcon)
     readonly property bool iconOnlyApplication: iconOnlyKey !== "" && TaskManagerApplet.IconOnlyApps.applications.includes(iconOnlyKey)
+    readonly property real iconOnlySidePadding: iconOnlyApplication && !inPopup ? Kirigami.Units.smallSpacing : 0
     readonly property bool isIcon: tasksRoot.iconsOnly || model.IsLauncher || (!inPopup && iconOnlyApplication)
     property bool toolTipOpen: false
     property bool inPopup: false
