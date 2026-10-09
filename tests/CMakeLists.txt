@@ -1,3 +1,6 @@
+find_package(Python3 3.9 REQUIRED COMPONENTS Interpreter)
+add_test(NAME panel_script COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_panel.py)
+
 add_executable(test_icononlyapps test_icononlyapps.cpp ../src/icononlyapps.cpp)
 target_include_directories(test_icononlyapps PRIVATE ../src)
 target_link_libraries(test_icononlyapps PRIVATE Qt::Test Qt::Qml KF6::ConfigCore KF6::Service)

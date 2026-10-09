@@ -17,7 +17,8 @@ This widget includes a C++ plugin and must be built from source. It requires:
 - A C++20 compiler, CMake 3.22 or newer, Ninja, and gettext.
 - Qt 6.10 or newer, KDE Frameworks 6, and Extra CMake Modules 6.20 or newer.
 - Plasma development libraries, including PlasmaQuick, PlasmaActivities, PlasmaActivitiesStats, KSysGuard, and LibNotificationManager.
-- Python 3, X11 development libraries, Xvfb (`xvfb-run`), and D-Bus (`dbus-run-session`) for the installation and test scripts.
+- Python 3.9 or newer, X11 development libraries, Xvfb (`xvfb-run`), and D-Bus (`dbus-run-session`) for the installation and test scripts.
+- systemd with `systemctl` and `busctl` for automatic panel activation.
 
 Tested with Plasma **6.7.5**, KDE Frameworks **6.30**, and Qt **6.12** on Garuda Linux. Other versions may require changes to the code or build configuration.
 
@@ -31,9 +32,27 @@ bash scripts/install.sh --activate
 
 The script builds and tests the widget, installs it under `~/.local`, backs up the panel configuration, and replaces all existing **Icons-and-Text Task Manager** widgets while preserving their IDs, positions, and settings. Installation does not require root privileges once the dependencies are available.
 
-Automatic activation requires an existing Icons-and-Text Task Manager on a panel and a Plasma session managed by the systemd user service `plasma-plasmashell.service`. If the panel only has an Icons-Only Task Manager, add the standard Icons-and-Text Task Manager before activating this widget.
+Automatic activation requires an existing Icons-and-Text Task Manager (or a previously activated Hybrid Task Manager) on a panel and the systemd user service `plasma-plasmashell.service`. If the panel only has an Icons-Only Task Manager, add the standard Icons-and-Text Task Manager before activating this widget. If Plasma was started manually, activation closes that shell before starting it through the service.
 
 Activation briefly restarts the Plasma shell; KWin and running applications remain active. Running the command again updates the library and reloads the widget. Omit `--activate` to build, test, and install without changing the panel configuration or restarting Plasma.
+
+## Restarting Plasma and recovering a missing widget
+
+Use the systemd user service to restart Plasma:
+
+```bash
+systemctl --user restart plasma-plasmashell.service
+```
+
+Activation configures `QT_PLUGIN_PATH` in an override for this service so Plasma can find the locally installed plugin. Starting `plasmashell` directly or through `kstart` bypasses that override and can produce **package org.ezez.plasma.hybridtaskmanager does not exist**, even though the plugin is still installed. Use the command above in custom restart scripts as well.
+
+If Plasma is already running outside the service, run this from the project directory to recover without rebuilding or removing the widget:
+
+```bash
+python3 scripts/panel.py activate
+```
+
+The script stops the manually started shell, waits for it to exit and save the panel layout, and starts the service with the plugin path. If the shell does not exit within ten seconds, activation stops before modifying the layout. Startup failures trigger an attempt to restore the previous configuration; the error includes the backup location if activation cannot complete.
 
 ## Status and rollback
 
@@ -67,6 +86,8 @@ bash scripts/test-integration.sh
 ```
 
 Tests cover application identification, preference persistence, context-menu actions, labels, button widths, reopening applications, vertical panels, multiple rows, grouping, and sharing preferences between widget instances. Drag-and-drop tests check small pointer movements, pauses, and intentional reversal in both LTR and RTL layouts.
+
+Activation tests cover recovery after a manual Plasma restart, shutdown timeouts, and restoring the configuration after a failed startup. They use temporary files, simulated service responses, and disposable processes without controlling the desktop session.
 
 Integration tests load the actual Plasma plugin and window model inside Xvfb with software rendering. A private D-Bus session and temporary configuration, data, and cache directories isolate them from the desktop session. They do not start KWin or connect to the user's display.
 

@@ -17,7 +17,8 @@ Widżet zawiera plugin C++ i wymaga kompilacji ze źródeł. Potrzebne są:
 - Kompilator C++20, CMake 3.22 lub nowszy, Ninja i gettext.
 - Qt 6.10 lub nowsze, KDE Frameworks 6 oraz Extra CMake Modules 6.20 lub nowsze.
 - Biblioteki deweloperskie Plasmy, w tym PlasmaQuick, PlasmaActivities, PlasmaActivitiesStats, KSysGuard i LibNotificationManager.
-- Python 3, biblioteki deweloperskie X11, Xvfb (`xvfb-run`) i D-Bus (`dbus-run-session`) do skryptów instalacji i testów.
+- Python 3.9 lub nowszy, biblioteki deweloperskie X11, Xvfb (`xvfb-run`) i D-Bus (`dbus-run-session`) do skryptów instalacji i testów.
+- systemd z poleceniami `systemctl` i `busctl` do automatycznej aktywacji na panelu.
 
 Przetestowano z Plasmą **6.7.5**, KDE Frameworks **6.30** i Qt **6.12** na Garuda Linux. Inne wersje mogą wymagać zmian w kodzie lub konfiguracji kompilacji.
 
@@ -31,9 +32,27 @@ bash scripts/install.sh --activate
 
 Skrypt buduje i testuje widżet, instaluje go w `~/.local`, robi kopię konfiguracji paneli i zastępuje wszystkie istniejące widżety **Icons-and-Text Task Manager**, zachowując ich ID, pozycje oraz ustawienia. Po zainstalowaniu zależności sama instalacja widżetu nie wymaga uprawnień roota.
 
-Automatyczna aktywacja wymaga istniejącego widżetu Icons-and-Text Task Manager na panelu oraz sesji Plasmy zarządzanej przez usługę użytkownika systemd `plasma-plasmashell.service`. Jeśli panel zawiera tylko menedżer zadań z samymi ikonami, przed aktywacją dodaj standardowy menedżer z ikonami i tekstem.
+Automatyczna aktywacja wymaga istniejącego widżetu Icons-and-Text Task Manager (lub wcześniej aktywowanego Hybrid Task Manager) na panelu oraz usługi użytkownika systemd `plasma-plasmashell.service`. Jeśli panel zawiera tylko menedżer zadań z samymi ikonami, przed aktywacją dodaj standardowy menedżer z ikonami i tekstem. Jeśli Plasma została uruchomiona ręcznie, aktywacja zamknie tę powłokę przed uruchomieniem jej przez usługę.
 
 Aktywacja na krótko restartuje powłokę Plasmy; KWin i uruchomione aplikacje pozostają aktywne. Ponowne wykonanie polecenia aktualizuje bibliotekę i przeładowuje widżet. Pomiń `--activate`, aby zbudować, przetestować i zainstalować widżet bez zmiany konfiguracji paneli i restartu Plasmy.
+
+## Restart Plasmy i przywracanie brakującego widżetu
+
+Do restartowania Plasmy używaj usługi użytkownika systemd:
+
+```bash
+systemctl --user restart plasma-plasmashell.service
+```
+
+Aktywacja zapisuje `QT_PLUGIN_PATH` w konfiguracji tej usługi, aby Plasma mogła znaleźć lokalnie zainstalowany plugin. Uruchomienie `plasmashell` bezpośrednio lub przez `kstart` pomija tę konfigurację i może powodować błąd **package org.ezez.plasma.hybridtaskmanager does not exist**, mimo że plugin nadal jest zainstalowany. Powyższego polecenia używaj również we własnych skryptach restartu.
+
+Jeśli Plasma już działa poza usługą, wykonaj w katalogu projektu poniższe polecenie, aby przywrócić widżet bez ponownej kompilacji ani usuwania go z panelu:
+
+```bash
+python3 scripts/panel.py activate
+```
+
+Skrypt zamyka ręcznie uruchomioną powłokę, czeka na jej zakończenie i zapis układu paneli, a następnie uruchamia usługę ze ścieżką do pluginu. Jeśli powłoka nie zakończy się w ciągu dziesięciu sekund, aktywacja przerywa działanie przed zmianą układu. Błąd startu powoduje próbę przywrócenia poprzedniej konfiguracji; komunikat nieudanej aktywacji zawiera lokalizację kopii zapasowej.
 
 ## Sprawdzanie stanu i cofnięcie zmiany
 
@@ -67,6 +86,8 @@ bash scripts/test-integration.sh
 ```
 
 Testy obejmują identyfikację aplikacji, trwały zapis ustawień, akcje menu kontekstowego, etykiety, szerokości przycisków, ponowne otwarcie aplikacji, pionowe panele, wiele rzędów, grupowanie i współdzielenie ustawień między instancjami. Testy przeciągania sprawdzają drobne ruchy kursora, zatrzymanie i celową zmianę kierunku w układach LTR i RTL.
+
+Testy aktywacji obejmują odzyskiwanie widżetu po ręcznym restarcie Plasmy, przekroczenie czasu zamykania powłoki i przywracanie konfiguracji po nieudanym starcie. Korzystają z plików tymczasowych, symulowanych odpowiedzi usługi i jednorazowych procesów, bez sterowania sesją pulpitu.
 
 Testy integracyjne ładują rzeczywisty plugin Plasmy i model okien w Xvfb z renderowaniem programowym. Prywatna sesja D-Bus oraz tymczasowe katalogi konfiguracji, danych i pamięci podręcznej izolują je od sesji pulpitu. Testy nie uruchamiają KWin ani nie łączą się z ekranem użytkownika.
 
