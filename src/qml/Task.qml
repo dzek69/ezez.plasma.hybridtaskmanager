@@ -53,7 +53,7 @@ PlasmaCore.ToolTipArea {
 
     readonly property int pid: model.AppPid
     readonly property string appName: model.AppName
-    readonly property string appId: model.AppId.replace(/\.desktop/, '')
+    readonly property string appId: model.AppId
     readonly property string iconOnlyKey: TaskManagerApplet.IconOnlyApps.applicationKey(model.AppId, model.LauncherUrlWithoutIcon)
     readonly property bool iconOnlyApplication: iconOnlyKey !== "" && TaskManagerApplet.IconOnlyApps.applications.includes(iconOnlyKey)
     readonly property real iconOnlySidePadding: iconOnlyApplication && !inPopup ? Kirigami.Units.smallSpacing : 0
@@ -82,8 +82,9 @@ PlasmaCore.ToolTipArea {
         || (task.contextMenu && task.contextMenu.status === PlasmaExtras.Menu.Open)
         || (!!tasksRoot.groupDialog && tasksRoot.groupDialog.visualParent === task)
 
-    active: !inPopup && !tasksRoot.groupDialog && task.contextMenu?.status !== PlasmaExtras.Menu.Open
+    active: !inPopup && !tasksRoot.groupDialog && task.contextMenu?.status !== PlasmaExtras.Menu.Open && task === (tasksRoot.toolTipOpenedByClick ?? task)
     interactive: model.IsWindow || mainItem.playerData
+    hideOnClick: !(hasAudioStream && audioIndicatorsEnabled)
     location: Plasmoid.location
     mainItem: !Plasmoid.configuration.showToolTips || !model.IsWindow ? pinnedAppToolTipDelegate : openWindowToolTipDelegate
 
@@ -198,12 +199,12 @@ PlasmaCore.ToolTipArea {
     }
 
     onContainsMouseChanged: {
-        if (containsMouse) {
+        if (tasksRoot.toolTipOpenedByClick && tasksRoot.toolTipOpenedByClick === mainItem.parentTask) {
+            tasksRoot.toolTipOpenedByClick.showToolTip();
+        } else if (containsMouse) {
             task.forceActiveFocus(Qt.MouseFocusReason);
             task.updateMainItemBindings();
-        } else {
-            tasksRoot.toolTipOpenedByClick = null;
-        }
+        } 
     }
 
     onHighlightedChanged: {
@@ -314,9 +315,14 @@ PlasmaCore.ToolTipArea {
             return;
         }
 
+        var streams = [];
+
         // Check appid first for app using portal
         // https://docs.pipewire.org/page_portal.html
-        var streams = pa.streamsForAppId(task.appId);
+        if (task.appId) {
+            streams = pa.streamsForAppId(task.appId);
+        }
+
         if (!streams.length) {
             streams = pa.streamsForPid(model.AppPid);
             if (streams.length) {
@@ -369,7 +375,7 @@ PlasmaCore.ToolTipArea {
         mainItem.virtualDesktops = Qt.binding(() => model.VirtualDesktops);
         mainItem.isOnAllVirtualDesktops = Qt.binding(() => model.IsOnAllVirtualDesktops);
         mainItem.activities = Qt.binding(() => model.Activities);
-        mainItem.isReadyForPainting = Qt.binding(() => model.Geometry?.width > 0 && model.Geometry?.height > 0);
+        mainItem.isReadyForPainting = Qt.binding(() => model.IsMapped);
 
         mainItem.smartLauncherCountVisible = Qt.binding(() => smartLauncherItem?.countVisible ?? false);
         mainItem.smartLauncherCount = Qt.binding(() => mainItem.smartLauncherCountVisible ? (smartLauncherItem?.count ?? 0) : 0);
@@ -405,7 +411,6 @@ PlasmaCore.ToolTipArea {
     TapHandler {
         acceptedButtons: Qt.RightButton
         acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad | PointerDevice.Stylus
-        gesturePolicy: TapHandler.WithinBounds // Release grab when menu appears
         onPressedChanged: if (pressed) contextMenuTimer.start()
     }
 

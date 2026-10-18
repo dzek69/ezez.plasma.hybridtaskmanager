@@ -722,19 +722,6 @@ PlasmaExtras.Menu {
             }
 
             PlasmaExtras.MenuItem {
-                enabled: menu.visualParent && menu.get(TaskManager.AbstractTasksModel.IsShadeable)
-
-                checkable: true
-                checked: menu.visualParent && menu.get(TaskManager.AbstractTasksModel.IsShaded)
-                visible: Qt.platform.pluginName !== "wayland"
-
-                text: i18ndc("plasma_applet_org.kde.plasma.taskmanager", "action:inmenu", "&Shade")
-                icon: "window-shade"
-
-                onClicked: tasksModel.requestToggleShaded(menu.modelIndex)
-            }
-
-            PlasmaExtras.MenuItem {
                 enabled: menu.visualParent && menu.get(TaskManager.AbstractTasksModel.CanSetNoBoder)
 
                 checkable: true

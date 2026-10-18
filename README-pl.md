@@ -2,7 +2,7 @@
 
 [English](README.md) | Polski
 
-Wariant KDE **Icons-and-Text Task Manager** z wyborem aplikacji wyświetlanych samą ikoną. Bazuje na kodzie Plasma Desktop **6.7.5** i używa istniejącego modelu zadań KDE.
+Wariant KDE **Icons-and-Text Task Manager** z wyborem aplikacji wyświetlanych samą ikoną. Bazuje na kodzie Plasma Desktop **6.8.0** i używa istniejącego modelu zadań KDE.
 
 ![Hybrid Task Manager z przyciskami aplikacji z samymi ikonami oraz z tekstem na jednym panelu](screenshot.png)
 
@@ -17,10 +17,10 @@ Widżet zawiera plugin C++ i wymaga kompilacji ze źródeł. Potrzebne są:
 - Kompilator C++20, CMake 3.22 lub nowszy, Ninja i gettext.
 - Qt 6.10 lub nowsze, KDE Frameworks 6 oraz Extra CMake Modules 6.20 lub nowsze.
 - Biblioteki deweloperskie Plasmy, w tym PlasmaQuick, PlasmaActivities, PlasmaActivitiesStats, KSysGuard i LibNotificationManager.
-- Python 3.9 lub nowszy, biblioteki deweloperskie X11, Xvfb (`xvfb-run`) i D-Bus (`dbus-run-session`) do skryptów instalacji i testów.
+- Python 3.9 lub nowszy, KWin (`kwin_wayland`), LayerShellQt i D-Bus (`dbus-run-session`) do skryptów instalacji i testów.
 - systemd z poleceniami `systemctl` i `busctl` do automatycznej aktywacji na panelu.
 
-Przetestowano z Plasmą **6.7.5**, KDE Frameworks **6.30** i Qt **6.12** na Garuda Linux. Inne wersje mogą wymagać zmian w kodzie lub konfiguracji kompilacji.
+Przetestowano z Plasmą **6.8.0**, KDE Frameworks **6.31** i Qt **6.12** na Garuda Linux. Inne wersje mogą wymagać zmian w kodzie lub konfiguracji kompilacji.
 
 ## Instalacja
 
@@ -74,6 +74,16 @@ Domyślne lokalizacje plików:
 
 Aktualizacja pakietów KDE nie nadpisuje tego widżetu. Po zmianach ABI Plasmy lub Qt może być potrzebna ponowna kompilacja. Zmiany z przyszłych wersji menedżera zadań KDE nie trafiają do tego forka automatycznie.
 
+### Po aktualizacji Plasmy
+
+Jeśli na panelu zamiast widżetu widać ikonę, a po kliknięciu pojawia się **Could not load plugin … libPlasma.so.N: cannot open shared object file**, biblioteka została zbudowana dla poprzedniej wersji Plasmy. Przebuduj ją i przeładuj:
+
+```bash
+bash scripts/install.sh --activate
+```
+
+Nowe wydanie Plasmy może też zmienić API, z których korzysta widżet. Wtedy kompilacja się nie powiedzie albo widżet nadal się nie załaduje. W takim przypadku zostanie wydana zaktualizowana wersja projektu. Zaktualizuj swoją kopię projektu i ponownie uruchom powyższe polecenie.
+
 ## Testy
 
 Aby zbudować i uruchomić testy bez instalowania widżetu:
@@ -89,12 +99,12 @@ Testy obejmują identyfikację aplikacji, trwały zapis ustawień, akcje menu ko
 
 Testy aktywacji obejmują odzyskiwanie widżetu po ręcznym restarcie Plasmy, przekroczenie czasu zamykania powłoki i przywracanie konfiguracji po nieudanym starcie. Korzystają z plików tymczasowych, symulowanych odpowiedzi usługi i jednorazowych procesów, bez sterowania sesją pulpitu.
 
-Testy integracyjne ładują rzeczywisty plugin Plasmy i model okien w Xvfb z renderowaniem programowym. Prywatna sesja D-Bus oraz tymczasowe katalogi konfiguracji, danych i pamięci podręcznej izolują je od sesji pulpitu. Testy nie uruchamiają KWin ani nie łączą się z ekranem użytkownika.
+Testy integracyjne ładują rzeczywisty plugin Plasmy i model okien jako sesję zagnieżdżonego KWin z wirtualnym wyjściem i renderowaniem programowym, ponieważ Plasma 6.8 śledzi okna wyłącznie pod Waylandem. Prywatna sesja D-Bus oraz tymczasowe katalogi konfiguracji, danych, uruchomieniowe i pamięci podręcznej izolują je od sesji pulpitu. Testy nie łączą się z ekranem użytkownika.
 
-Logi i zrzuty ekranu powstają w `artifacts/`. Ostrzeżenia o niedostępnych usługach aktywności KDE lub bazie ostatnich dokumentów są spodziewane w izolowanej sesji testowej.
+Logi i zrzuty ekranu powstają w `artifacts/`. Ostrzeżenia o niedostępnych usługach aktywności KDE, bazie ostatnich dokumentów lub popupach z przechwytywaniem wejścia (menu kontekstowe są otwierane programowo, bez interakcji użytkownika) są spodziewane w izolowanej sesji testowej.
 
 Skrypt testowy zgłasza niepowodzenie przy błędach asercji, komunikatach QML `TypeError`/`ReferenceError` i pętlach powiązań właściwości.
 
 ## Pochodzenie kodu i licencje
 
-`src/` pochodzi z `applets/taskmanager` projektu [KDE plasma-desktop, tag v6.7.5](https://invent.kde.org/plasma/plasma-desktop/-/tree/v6.7.5/applets/taskmanager). Pliki konfiguracji historii aktywności pochodzą z `kcms/recentFiles`. Warunki licencyjne określają nagłówki SPDX poszczególnych plików i teksty w [LICENSES/](LICENSES/). Tłumaczenia standardowych funkcji korzystają z oryginalnego katalogu tłumaczeń KDE.
+`src/` pochodzi z `applets/taskmanager` projektu [KDE plasma-desktop, tag v6.8.0](https://invent.kde.org/plasma/plasma-desktop/-/tree/v6.8.0/applets/taskmanager). Pliki konfiguracji historii aktywności pochodzą z `kcms/recentFiles`. Warunki licencyjne określają nagłówki SPDX poszczególnych plików i teksty w [LICENSES/](LICENSES/). Tłumaczenia standardowych funkcji korzystają z oryginalnego katalogu tłumaczeń KDE.

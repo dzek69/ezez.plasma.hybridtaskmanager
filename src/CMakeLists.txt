@@ -49,12 +49,13 @@ target_link_libraries(org.ezez.plasma.hybridtaskmanager PRIVATE
                       Plasma::Activities
                       Plasma::ActivitiesStats
                       KF6::ConfigGui
+                      KF6::GlobalAccel
                       KF6::I18n
                       KF6::KIOCore
                       KF6::KIOGui
                       KF6::KIOFileWidgets # KFilePlacesModel
                       KF6::Notifications # KNotificationJobUiDelegate
-                      Plasma::Plasma
+                      KF6::XmlGui
                       KSysGuard::ProcessCore
                       KF6::Service
                       KF6::WindowSystem

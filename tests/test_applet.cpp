@@ -22,14 +22,13 @@
 #include <Plasma/Corona>
 #include <Plasma/Containment>
 #include <PlasmaQuick/AppletQuickItem>
-#include <X11/Xlib.h>
-#include <X11/Xatom.h>
+#include <LayerShellQt/Window>
 
 class TestCorona : public Plasma::Corona
 {
 public:
     using Plasma::Corona::Corona;
-    QRect screenGeometry(int) const override { return QRect(0, 0, 1280, 800); }
+    QRect screenGeometry(uint) const override { return QRect(0, 0, 1280, 800); }
 };
 
 class AppletTest : public QObject
@@ -41,23 +40,12 @@ class AppletTest : public QObject
     PlasmaQuick::AppletQuickItem *root = nullptr;
     QQuickWindow view;
     QProcess first, second, third;
-    Display *display = nullptr;
-    QList<unsigned long> windows;
 
-    void publishWindows()
-    {
-        XChangeProperty(display, DefaultRootWindow(display), XInternAtom(display, "_NET_CLIENT_LIST", false),
-                        XA_WINDOW, 32, PropModeReplace, reinterpret_cast<const unsigned char *>(windows.constData()), windows.size());
-        XFlush(display);
-    }
     void registerWindow(QProcess &process)
     {
         QVERIFY(process.waitForStarted());
         QVERIFY(process.waitForReadyRead());
-        const auto id = process.readLine().trimmed().toULong();
-        QVERIFY(id);
-        windows.append(id);
-        publishWindows();
+        QCOMPARE(process.readLine().trimmed(), QByteArray("mapped"));
     }
 
     QVariant eval(const QString &code, QObject *scope = nullptr)
@@ -102,8 +90,6 @@ class AppletTest : public QObject
 private Q_SLOTS:
     void initTestCase()
     {
-        display = XOpenDisplay(nullptr);
-        QVERIFY(display);
         corona = new TestCorona(this);
         panel = corona->createContainment("null");
         QVERIFY(panel);
@@ -127,6 +113,11 @@ private Q_SLOTS:
         view.resize(1000, 44);
         view.setTitle("Hybrid Task Manager Test");
         view.setColor(QColor("#eff0f1"));
+        // Like a real panel: a layer-shell surface is not listed as a task.
+        auto layerWindow = LayerShellQt::Window::get(&view);
+        layerWindow->setLayer(LayerShellQt::Window::LayerTop);
+        layerWindow->setAnchors(LayerShellQt::Window::Anchors(LayerShellQt::Window::AnchorBottom | LayerShellQt::Window::AnchorLeft));
+        layerWindow->setKeyboardInteractivity(LayerShellQt::Window::KeyboardInteractivityNone);
         view.show();
         first.start(QCoreApplication::applicationFilePath(), {"--fixture", "org.kde.konsole", "Terminal test"});
         second.start(QCoreApplication::applicationFilePath(), {"--fixture", "org.kde.dolphin", "Files test"});
@@ -231,8 +222,6 @@ private Q_SLOTS:
         toggleMenu(task("Terminal test"), false);
         first.terminate();
         QVERIFY(first.waitForFinished());
-        windows.removeFirst();
-        publishWindows();
         QTRY_VERIFY(!task("Terminal test"));
         first.start(QCoreApplication::applicationFilePath(), {"--fixture", "org.kde.konsole", "Terminal reopened"});
         registerWindow(first);
@@ -318,8 +307,6 @@ private Q_SLOTS:
         delete otherApplet;
         third.terminate();
         QVERIFY(third.waitForFinished());
-        windows.removeLast();
-        publishWindows();
     }
     void cleanupTestCase()
     {
@@ -334,7 +321,6 @@ private Q_SLOTS:
         view.hide();
         delete corona;
         corona = nullptr;
-        XCloseDisplay(display);
     }
 };
 
@@ -347,15 +333,13 @@ int main(int argc, char **argv)
         QQuickWindow window;
         window.setTitle(app.arguments().value(3));
         window.resize(320, 200);
+        // The desktop file name becomes the xdg-shell app_id. KWin announces the
+        // window to the task model once its first buffer is committed.
+        QObject::connect(&window, &QQuickWindow::frameSwapped, &window, [] {
+            printf("mapped\n");
+            fflush(stdout);
+        }, Qt::SingleShotConnection);
         window.show();
-        auto display = XOpenDisplay(nullptr);
-        const QByteArray desktopFile = app.arguments().value(2).toUtf8();
-        XChangeProperty(display, window.winId(), XInternAtom(display, "_KDE_NET_WM_DESKTOP_FILE", false),
-                        XInternAtom(display, "UTF8_STRING", false), 8, PropModeReplace,
-                        reinterpret_cast<const unsigned char *>(desktopFile.constData()), desktopFile.size());
-        XFlush(display);
-        printf("%lu\n", static_cast<unsigned long>(window.winId()));
-        fflush(stdout);
         return app.exec();
     }
     AppletTest test;

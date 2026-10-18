@@ -2,7 +2,7 @@
 
 English | [Polski](README-pl.md)
 
-A fork of KDE's **Icons-and-Text Task Manager** that lets you display selected applications as icons without labels. Based on Plasma Desktop **6.7.5**, using KDE's existing task model.
+A fork of KDE's **Icons-and-Text Task Manager** that lets you display selected applications as icons without labels. Based on Plasma Desktop **6.8.0**, using KDE's existing task model.
 
 ![Hybrid Task Manager with icon-only and labeled application buttons on the same panel](screenshot.png)
 
@@ -17,10 +17,10 @@ This widget includes a C++ plugin and must be built from source. It requires:
 - A C++20 compiler, CMake 3.22 or newer, Ninja, and gettext.
 - Qt 6.10 or newer, KDE Frameworks 6, and Extra CMake Modules 6.20 or newer.
 - Plasma development libraries, including PlasmaQuick, PlasmaActivities, PlasmaActivitiesStats, KSysGuard, and LibNotificationManager.
-- Python 3.9 or newer, X11 development libraries, Xvfb (`xvfb-run`), and D-Bus (`dbus-run-session`) for the installation and test scripts.
+- Python 3.9 or newer, KWin (`kwin_wayland`), LayerShellQt, and D-Bus (`dbus-run-session`) for the installation and test scripts.
 - systemd with `systemctl` and `busctl` for automatic panel activation.
 
-Tested with Plasma **6.7.5**, KDE Frameworks **6.30**, and Qt **6.12** on Garuda Linux. Other versions may require changes to the code or build configuration.
+Tested with Plasma **6.8.0**, KDE Frameworks **6.31**, and Qt **6.12** on Garuda Linux. Other versions may require changes to the code or build configuration.
 
 ## Installation
 
@@ -74,6 +74,16 @@ Default file locations:
 
 KDE package updates do not overwrite this widget. Plasma or Qt ABI changes may require rebuilding it. This fork does not automatically incorporate changes from future versions of KDE's task manager.
 
+### After a Plasma upgrade
+
+If the panel shows an icon instead of the widget and clicking it reports **Could not load plugin … libPlasma.so.N: cannot open shared object file**, the library was built against the previous Plasma version. Rebuild and reload it:
+
+```bash
+bash scripts/install.sh --activate
+```
+
+A new Plasma feature release can also change the APIs this widget uses, so rebuilding fails or the widget still does not load. In that case, an updated version of the project will be released. Update your copy of the project and run the command above again.
+
 ## Tests
 
 To build and run the tests without installing the widget:
@@ -89,12 +99,12 @@ Tests cover application identification, preference persistence, context-menu act
 
 Activation tests cover recovery after a manual Plasma restart, shutdown timeouts, and restoring the configuration after a failed startup. They use temporary files, simulated service responses, and disposable processes without controlling the desktop session.
 
-Integration tests load the actual Plasma plugin and window model inside Xvfb with software rendering. A private D-Bus session and temporary configuration, data, and cache directories isolate them from the desktop session. They do not start KWin or connect to the user's display.
+Integration tests load the actual Plasma plugin and window model as the session of a nested KWin with a virtual output and software rendering, since Plasma 6.8 tracks windows only on Wayland. A private D-Bus session and temporary configuration, data, runtime, and cache directories isolate them from the desktop session. They do not connect to the user's display.
 
-Logs and screenshots are written to `artifacts/`. Warnings about unavailable KDE activity services or the recent-documents database are expected in the isolated test session.
+Logs and screenshots are written to `artifacts/`. Warnings about unavailable KDE activity services, the recent-documents database, or grabbing popups (context menus are opened programmatically, without user input) are expected in the isolated test session.
 
 The test runner fails on assertion failures, QML `TypeError`/`ReferenceError` messages, and binding loops.
 
 ## Source and licensing
 
-`src/` is derived from `applets/taskmanager` in [KDE plasma-desktop, tag v6.7.5](https://invent.kde.org/plasma/plasma-desktop/-/tree/v6.7.5/applets/taskmanager). The activity-history configuration files come from `kcms/recentFiles`. See each file's SPDX header and the license texts in [LICENSES/](LICENSES/) for licensing terms. Translations for standard task-manager features use KDE's original translation catalog.
+`src/` is derived from `applets/taskmanager` in [KDE plasma-desktop, tag v6.8.0](https://invent.kde.org/plasma/plasma-desktop/-/tree/v6.8.0/applets/taskmanager). The activity-history configuration files come from `kcms/recentFiles`. See each file's SPDX header and the license texts in [LICENSES/](LICENSES/) for licensing terms. Translations for standard task-manager features use KDE's original translation catalog.
