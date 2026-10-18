@@ -84,6 +84,18 @@ bash scripts/install.sh --activate
 
 Nowe wydanie Plasmy może też zmienić API, z których korzysta widżet. Wtedy kompilacja się nie powiedzie albo widżet nadal się nie załaduje. W takim przypadku zostanie wydana zaktualizowana wersja projektu. Zaktualizuj swoją kopię projektu i ponownie uruchom powyższe polecenie.
 
+### Aplikacje webowe Chromium
+
+Pod Waylandem model zadań Plasmy może pokazywać aplikacje webowe (PWA) przeglądarek opartych na Chromium jako samą przeglądarkę: z jej ikoną i nazwą oraz w jednej grupie z jej oknami. Dotyczy to również standardowych menedżerów zadań KDE. Dzieje się tak, gdy plik `.desktop` przeglądarki deklaruje `StartupWMClass` (np. `StartupWMClass=chromium` od Chromium 154 w Arch Linux), ponieważ każde okno przeglądarki, także aplikacji webowej, zgłasza Plasmie nazwę pliku wykonywalnego.
+
+`scripts/install.sh` uruchamia `scripts/chromium-pwa.py`, który kopiuje takie wpisy przeglądarek do `~/.local/share/applications/` bez `StartupWMClass`. Okna samej przeglądarki są nadal rozpoznawane po identyfikatorze aplikacji. Kopie powstają tylko dla przeglądarek z zainstalowanymi aplikacjami webowymi, są oznaczone kluczem `X-HybridTaskManager-Source` i nigdy nie zastępują Twoich własnych plików. Plasma uwzględnia zmianę bez restartu.
+
+Po zainstalowaniu aplikacji webowej lub aktualizacji przeglądarki uruchom skrypt ponownie, aby odświeżyć kopie. Aby je usunąć:
+
+```bash
+python3 scripts/chromium-pwa.py restore
+```
+
 ## Testy
 
 Aby zbudować i uruchomić testy bez instalowania widżetu:
@@ -97,7 +109,7 @@ bash scripts/test-integration.sh
 
 Testy obejmują identyfikację aplikacji, trwały zapis ustawień, akcje menu kontekstowego, etykiety, szerokości przycisków, ponowne otwarcie aplikacji, pionowe panele, wiele rzędów, grupowanie i współdzielenie ustawień między instancjami. Testy przeciągania sprawdzają drobne ruchy kursora, zatrzymanie i celową zmianę kierunku w układach LTR i RTL.
 
-Testy aktywacji obejmują odzyskiwanie widżetu po ręcznym restarcie Plasmy, przekroczenie czasu zamykania powłoki i przywracanie konfiguracji po nieudanym starcie. Korzystają z plików tymczasowych, symulowanych odpowiedzi usługi i jednorazowych procesów, bez sterowania sesją pulpitu.
+Testy aktywacji obejmują odzyskiwanie widżetu po ręcznym restarcie Plasmy, przekroczenie czasu zamykania powłoki i przywracanie konfiguracji po nieudanym starcie. Korzystają z plików tymczasowych, symulowanych odpowiedzi usługi i jednorazowych procesów, bez sterowania sesją pulpitu. Testy skryptu dla aplikacji webowych Chromium korzystają z tymczasowych katalogów aplikacji.
 
 Testy integracyjne ładują rzeczywisty plugin Plasmy i model okien jako sesję zagnieżdżonego KWin z wirtualnym wyjściem i renderowaniem programowym, ponieważ Plasma 6.8 śledzi okna wyłącznie pod Waylandem. Prywatna sesja D-Bus oraz tymczasowe katalogi konfiguracji, danych, uruchomieniowe i pamięci podręcznej izolują je od sesji pulpitu. Testy nie łączą się z ekranem użytkownika.
 

@@ -84,6 +84,18 @@ bash scripts/install.sh --activate
 
 A new Plasma feature release can also change the APIs this widget uses, so rebuilding fails or the widget still does not load. In that case, an updated version of the project will be released. Update your copy of the project and run the command above again.
 
+### Chromium web apps
+
+On Wayland, Plasma's task model can show Chromium-based web apps (PWAs) as the browser itself: with the browser's icon and name, and grouped with its windows. This affects KDE's standard task managers as well. It happens when the browser's `.desktop` entry declares `StartupWMClass` (e.g. `StartupWMClass=chromium` since Chromium 154 on Arch Linux), because every window of the browser, including web apps, reports the executable name to Plasma.
+
+`scripts/install.sh` runs `scripts/chromium-pwa.py`, which copies such browser entries to `~/.local/share/applications/` without `StartupWMClass`. The browser's own windows are still recognized by their app ID. Overrides are created only for browsers that have web apps installed, marked with `X-HybridTaskManager-Source`, and never replace your own files. Plasma picks up the change without a restart.
+
+Run the script again after installing a web app or updating the browser to refresh the copies, and remove the overrides with:
+
+```bash
+python3 scripts/chromium-pwa.py restore
+```
+
 ## Tests
 
 To build and run the tests without installing the widget:
@@ -97,7 +109,7 @@ bash scripts/test-integration.sh
 
 Tests cover application identification, preference persistence, context-menu actions, labels, button widths, reopening applications, vertical panels, multiple rows, grouping, and sharing preferences between widget instances. Drag-and-drop tests check small pointer movements, pauses, and intentional reversal in both LTR and RTL layouts.
 
-Activation tests cover recovery after a manual Plasma restart, shutdown timeouts, and restoring the configuration after a failed startup. They use temporary files, simulated service responses, and disposable processes without controlling the desktop session.
+Activation tests cover recovery after a manual Plasma restart, shutdown timeouts, and restoring the configuration after a failed startup. They use temporary files, simulated service responses, and disposable processes without controlling the desktop session. Tests of the Chromium web app script use temporary application directories.
 
 Integration tests load the actual Plasma plugin and window model as the session of a nested KWin with a virtual output and software rendering, since Plasma 6.8 tracks windows only on Wayland. A private D-Bus session and temporary configuration, data, runtime, and cache directories isolate them from the desktop session. They do not connect to the user's display.
 

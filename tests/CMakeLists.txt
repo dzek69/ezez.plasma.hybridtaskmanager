@@ -1,5 +1,6 @@
 find_package(Python3 3.9 REQUIRED COMPONENTS Interpreter)
 add_test(NAME panel_script COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_panel.py)
+add_test(NAME chromium_pwa_script COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_chromium_pwa.py)
 
 add_executable(test_icononlyapps test_icononlyapps.cpp ../src/icononlyapps.cpp)
 target_include_directories(test_icononlyapps PRIVATE ../src)

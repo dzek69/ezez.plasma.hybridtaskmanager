@@ -32,6 +32,8 @@ for file in source.rglob('*'):
     finally:
         Path(temporary).unlink(missing_ok=True)
 PY
+# Keep Chromium web apps from being shown as the browser (see README).
+python3 "$project_dir/scripts/chromium-pwa.py"
 if [[ "${1:-}" == --activate ]]; then
     python3 "$project_dir/scripts/panel.py" activate
 fi
