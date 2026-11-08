@@ -631,7 +631,16 @@ PlasmaCore.ToolTipArea {
         elide: Text.ElideRight
         textFormat: Text.PlainText
         verticalAlignment: Text.AlignVCenter
-        maximumLineCount: Plasmoid.configuration.maxTextLines || undefined
+        // Without a line limit, Text wraps at word boundaries and elides only the
+        // last visible line, so "sharey – package.json" became "sharey –…" in a
+        // one-line panel. Limit the label to the lines that fit, so a single line
+        // does not wrap and is elided within words instead.
+        maximumLineCount: Plasmoid.configuration.maxTextLines || Math.max(1, Math.floor(height / labelMetrics.lineSpacing))
+
+        FontMetrics {
+            id: labelMetrics
+            font: label.font
+        }
 
         // The accessible item of this element is only used for debugging
         // purposes, and it will never gain focus (thus it won't interfere

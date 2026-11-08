@@ -147,6 +147,38 @@ private Q_SLOTS:
         QTRY_VERIFY(labelVisible(terminal));
         QTRY_COMPARE(terminal->width(), textWidth);
     }
+    void singleLineLabelElidesWithoutWrapping()
+    {
+        auto files = task("Files test");
+        QTRY_VERIFY(labelVisible(files));
+        // Task.qml's ids live in the context of its own items, not of the delegate.
+        auto labelItem = eval("children.find(c => c.text !== undefined && c.visible && c.text === model.display)", files).value<QQuickItem *>();
+        QVERIFY(labelItem);
+        const auto label = [&](const QString &code) {
+            QQmlExpression expression(qmlContext(labelItem), labelItem, code);
+            const auto result = expression.evaluate();
+            if (expression.hasError()) {
+                qWarning() << expression.error();
+            }
+            return result;
+        };
+        const auto cleanup = qScopeGuard([&]() {
+            root->setSize(QSizeF(1000, 44));
+            view.resize(1000, 44);
+        });
+        // Room for one and a half lines: wrapping would elide only at word boundaries.
+        const qreal margins = 44 - label("label.height").toReal();
+        const int height = qCeil(margins + 1.5 * label("labelMetrics.lineSpacing").toReal());
+        root->setSize(QSizeF(1000, height));
+        view.resize(1000, height);
+        QTRY_COMPARE(label("label.maximumLineCount").toInt(), 1);
+        QCOMPARE(label("label.wrapMode").toInt(), 0); // Text.NoWrap
+        // A tall panel still wraps the title over several lines.
+        root->setSize(QSizeF(1000, 120));
+        view.resize(1000, 120);
+        QTRY_VERIFY(label("label.maximumLineCount").toInt() > 1);
+        QCOMPARE(label("label.wrapMode").toInt(), 4); // Text.Wrap
+    }
     void iconOnlyDragDoesNotOscillate_data()
     {
         QTest::addColumn<bool>("reverse");
